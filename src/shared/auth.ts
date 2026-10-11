@@ -14,8 +14,12 @@ const emit = (next: AuthState) => {
   listeners.forEach((fn) => fn(state));
 };
 
+// 기본 관리자: exam_admins 문서 없이도 관리자 (firestore.rules의 isExamAdmin()과 같게 유지)
+export const DEFAULT_ADMINS = ['kkhland@gmail.com'];
+
 const checkAdmin = async (user: User | null) => {
   if (!user?.email) return false;
+  if (user.emailVerified && DEFAULT_ADMINS.includes(user.email.toLowerCase())) return true;
   try {
     const snap = await getDoc(doc(db, 'exam_admins', user.email.toLowerCase()));
     return snap.exists();

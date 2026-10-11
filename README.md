@@ -20,12 +20,12 @@
 ## 처음 설정 (Firebase 콘솔, test-e7132)
 
 1. **Authentication → 로그인 방법 → Google 사용 설정**
-2. **Authentication → 설정 → 승인된 도메인**에 Vercel 배포 도메인 추가 (예: `wm-exam-system.vercel.app`)
-3. **Firestore → 데이터 → 컬렉션 시작**: 컬렉션 ID `exam_admins`, 문서 ID에 관리자 구글 이메일(소문자, 예: `kkhland@gmail.com`), 필드는 아무거나 1개(예: `name` = `관리자`)
-4. **Firestore → 규칙**에 `firestore.rules` 내용 붙여넣고 게시
-5. 배포된 앱에서 관리자 로그인 → `시험 현황 자동화` 메뉴 → **기존 데이터 가져오기** 1회 실행
+2. **Authentication → 설정 → 승인된 도메인**에 Vercel 배포 도메인 추가: `exam-system-amber.vercel.app`
+3. **Firestore → 규칙**에 `firestore.rules` 내용 붙여넣고 게시
+4. 배포된 앱에서 관리자 로그인 → `시험 현황 자동화` 메뉴 → **기존 데이터 가져오기** 1회 실행
 
-관리자를 추가하려면 3번처럼 `exam_admins`에 이메일 문서를 하나 더 만들면 됩니다.
+`kkhland@gmail.com`은 기본 관리자입니다(`src/shared/auth.ts`의 `DEFAULT_ADMINS`, `firestore.rules`).
+관리자를 더 추가하려면 **Firestore → 데이터**에서 컬렉션 `exam_admins`에 문서 ID = 구글 이메일(소문자), 필드 아무거나 1개(예: `name` = `관리자`)로 문서를 만드세요.
 
 ## 개발
 
