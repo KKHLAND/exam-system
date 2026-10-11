@@ -766,10 +766,10 @@ const PortalHeader = ({ darkMode, onToggleDark, onFont, onOpenAdmin, logoSrc, is
                     <div className="flex items-center gap-1.5">
                         <button 
                             onClick={onOpenAdmin} 
-                            className={`gbe-util-btn h-8 w-8 !p-0 flex items-center justify-center rounded-full transition-all ${isAdminLoggedIn ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm ring-2 ring-blue-300 dark:ring-blue-700' : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'}`} 
+                            className={`gbe-util-btn h-8 w-8 !p-0 flex items-center justify-center rounded-full transition-all ${isAdminLoggedIn ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm ring-2 ring-blue-300 dark:ring-blue-700' : 'bg-slate-100/80 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-200'}`} 
                             title={isAdminLoggedIn ? "관리자 설정 패널 열기 (로그인됨)" : "관리자 설정"}
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5 animate-[spin_8s_linear_infinite]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-[25.2px] h-[25.2px] opacity-80 hover:opacity-100 transition-opacity animate-[spin_8s_linear_infinite]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>

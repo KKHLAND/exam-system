@@ -4,13 +4,13 @@ import { getAuth } from 'firebase/auth';
 
 // 통합 앱이 사용하는 단일 Firebase 프로젝트 (기존 2·3번 앱과 동일)
 export const firebaseConfig = {
-  apiKey: 'AIzaSyCe28-jzi5S2EPXYkcYPkjwfiLYWvMWAk0',
-  authDomain: 'test-e7132.firebaseapp.com',
-  projectId: 'test-e7132',
-  storageBucket: 'test-e7132.firebasestorage.app',
-  messagingSenderId: '330440137731',
-  appId: '1:330440137731:web:58185c4d51886e74f30236',
-  measurementId: 'G-B33GZ6GZ0L',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyCe28-jzi5S2EPXYkcYPkjwfiLYWvMWAk0',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'test-e7132.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'test-e7132',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'test-e7132.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '330440137731',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:330440137731:web:58185c4d51886e74f30236',
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-B33GZ6GZ0L',
 };
 
 export const app = initializeApp(firebaseConfig);

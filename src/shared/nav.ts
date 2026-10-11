@@ -56,7 +56,7 @@ const renderBar = (bar: HTMLElement, current: PageKey, s: AuthState) => {
     ? ''
     : s.user && s.isAdmin
       ? `<span class="wmx-email">${escapeHtml(s.user.email || '')}</span><button class="wmx-btn" data-act="logout">로그아웃</button>`
-      : `<button class="wmx-btn" data-act="login">관리자 로그인</button>`;
+      : '';
   bar.innerHTML = `<div class="wmx-in"><a class="wmx-title" href="/">원묵고 정기고사 관리 시스템</a><nav class="wmx-tabs">${tabs}</nav><div class="wmx-user">${user}</div></div>`;
 };
 

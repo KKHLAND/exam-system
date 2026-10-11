@@ -1,0 +1,8 @@
+{
+  "name": "원묵고 정기고사 관리 시스템",
+  "description": "원묵고 정기고사 관리 시스템 - 시험 시간표 자동 생성, 시험 현황 자동화, 응시현황표 및 자리배치표, 관리자 구성원 관리",
+  "version": "1.0.0",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
