@@ -3,19 +3,31 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ── 원묵고 정기고사 관리 시스템: 관리자 판별 ──
-    // 기본 관리자(kkhland@gmail.com) 또는 exam_admins/{구글 이메일(소문자)} 문서가 있으면 관리자.
-    // 추가 관리자 문서는 Firebase 콘솔에서만 만듭니다. (src/shared/auth.ts의 DEFAULT_ADMINS와 같게 유지)
-    function isExamAdmin() {
+    // 기본 관리자: 관리자 구성원 추가·삭제 가능 (src/shared/auth.ts의 DEFAULT_ADMINS와 같게 유지)
+    function isSuperAdmin() {
       return request.auth != null
         && request.auth.token.email_verified == true
-        && (request.auth.token.email.lower() in ['kkhland@gmail.com']
-            || exists(/databases/$(database)/documents/exam_admins/$(request.auth.token.email.lower())));
+        && request.auth.token.email.lower() in ['kkhland@gmail.com'];
     }
 
-    // 관리자 목록: 본인 문서 존재 여부만 확인 가능, 앱에서는 수정 불가
+    // 관리자: 기본 관리자 또는 exam_admins/{구글 이메일(소문자)} 문서가 있는 계정
+    function isExamAdmin() {
+      return isSuperAdmin()
+        || (request.auth != null
+            && request.auth.token.email_verified == true
+            && exists(/databases/$(database)/documents/exam_admins/$(request.auth.token.email.lower())));
+    }
+
+    // 관리자 구성원 목록: 기본 관리자는 앱의 '관리자 구성원' 메뉴에서 조회·추가·삭제,
+    // 그 외 계정은 본인 문서 존재 여부만 확인 가능
     match /exam_admins/{email} {
-      allow read: if request.auth != null && request.auth.token.email.lower() == email;
-      allow write: if false;
+      allow read: if isSuperAdmin()
+        || (request.auth != null && request.auth.token.email.lower() == email);
+      allow create, update: if isSuperAdmin()
+        && email == email.lower()
+        && email.matches('^[^@ ]+@[^@ ]+[.][^@ ]+$')
+        && request.resource.data.keys().hasOnly(['name', 'addedBy', 'addedAt']);
+      allow delete: if isSuperAdmin();
     }
 
     // [기존 앱] 시험지 및 배치표 데이터 컬렉션 — 변경 없음

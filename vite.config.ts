@@ -7,6 +7,7 @@ import { defineConfig } from 'vite';
 //   /          시험 시간표 자동 생성 (일반 교사 조회 가능)
 //   /status/   시험 현황 자동화 (관리자)
 //   /docs/     응시현황표·자리배치표 생성 (관리자)
+//   /admins/   관리자 구성원 관리 (기본 관리자)
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
@@ -18,6 +19,7 @@ export default defineConfig({
         timetable: path.resolve(__dirname, 'index.html'),
         status: path.resolve(__dirname, 'status/index.html'),
         docs: path.resolve(__dirname, 'docs/index.html'),
+        admins: path.resolve(__dirname, 'admins/index.html'),
       },
     },
   },

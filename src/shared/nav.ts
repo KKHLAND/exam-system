@@ -2,12 +2,13 @@ import { loginAdmin, logoutAdmin, subscribeAuth, whenAuthReady, type AuthState }
 
 // 세 페이지 공통 상단바: 시스템 제목 + 메뉴 탭 + 관리자 로그인.
 // 각 앱의 Tailwind/CSS와 섞이지 않도록 wmx- 접두사의 독립 스타일을 사용합니다.
-type PageKey = 'timetable' | 'status' | 'docs';
+type PageKey = 'timetable' | 'status' | 'docs' | 'admins';
 
-const PAGES: { key: PageKey; href: string; label: string; adminOnly: boolean }[] = [
+const PAGES: { key: PageKey; href: string; label: string; adminOnly: boolean; superOnly?: boolean }[] = [
   { key: 'timetable', href: '/', label: '시험 시간표', adminOnly: false },
   { key: 'status', href: '/status/', label: '시험 현황 자동화', adminOnly: true },
   { key: 'docs', href: '/docs/', label: '응시현황표·자리배치표', adminOnly: true },
+  { key: 'admins', href: '/admins/', label: '관리자 구성원', adminOnly: true, superOnly: true },
 ];
 
 const CSS = `
@@ -45,7 +46,7 @@ const escapeHtml = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
 const renderBar = (bar: HTMLElement, current: PageKey, s: AuthState) => {
-  const tabs = PAGES.filter((p) => !p.adminOnly || s.isAdmin)
+  const tabs = PAGES.filter((p) => (!p.adminOnly || s.isAdmin) && (!p.superOnly || s.isSuperAdmin))
     .map(
       (p) =>
         `<a class="wmx-tab${p.key === current ? ' on' : ''}" href="${p.href}">${p.label}${p.adminOnly ? '<span class="wmx-lock">관리자</span>' : ''}</a>`,
@@ -85,17 +86,17 @@ export const mountNav = (current: PageKey) => {
 
 // 관리자 전용 페이지 보호: 관리자 확인 전까지 앱을 시작하지 않고 로그인 안내를 표시합니다.
 // (화면 차단용이며, 데이터 보호는 firestore.rules가 담당)
-export const requireAdmin = async (container: HTMLElement, start: () => void) => {
+export const requireAdmin = async (container: HTMLElement, start: () => void, opts: { superOnly?: boolean } = {}) => {
   injectStyle();
   const s = await whenAuthReady();
-  if (s.isAdmin) {
+  if (opts.superOnly ? s.isSuperAdmin : s.isAdmin) {
     start();
     return;
   }
   container.style.display = 'none';
   const gate = document.createElement('div');
   gate.className = 'wmx-gate';
-  gate.innerHTML = `<div class="wmx-card"><h2>관리자 전용 메뉴입니다</h2><p>이 메뉴는 관리자 계정으로 로그인해야 사용할 수 있습니다.<br>일반 교사는 시험 시간표 메뉴를 이용해 주세요.</p><button class="wmx-btn primary" data-act="login">관리자 로그인</button><a class="wmx-btn" href="/" style="text-decoration:none;display:inline-block">시험 시간표로 이동</a></div>`;
+  gate.innerHTML = `<div class="wmx-card"><h2>관리자 전용 메뉴입니다</h2><p>${opts.superOnly ? '이 메뉴는 기본 관리자만 사용할 수 있습니다.' : '이 메뉴는 관리자 계정으로 로그인해야 사용할 수 있습니다.'}<br>일반 교사는 시험 시간표 메뉴를 이용해 주세요.</p><button class="wmx-btn primary" data-act="login">관리자 로그인</button><a class="wmx-btn" href="/" style="text-decoration:none;display:inline-block">시험 시간표로 이동</a></div>`;
   container.after(gate);
   gate.querySelector('[data-act="login"]')!.addEventListener('click', async () => {
     try {
