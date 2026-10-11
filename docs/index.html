@@ -1,0 +1,2060 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>응시현황표·자리배치표 | 원묵고 정기고사 관리 시스템</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['"Noto Sans KR"', 'sans-serif'],
+            },
+          },
+        },
+      };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Noto Sans KR 웹폰트 적용 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body,
+      .font-sans,
+      input,
+      select,
+      textarea,
+      button,
+      table,
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6,
+      p,
+      span,
+      div {
+        font-family:
+          "Noto Sans KR",
+          -apple-system,
+          BlinkMacSystemFont,
+          system-ui,
+          Roboto,
+          "Helvetica Neue",
+          "Segoe UI",
+          "Apple SD Gothic Neo",
+          "Malgun Gothic",
+          "Apple Color Emoji",
+          "Segoe UI Emoji",
+          "Segoe UI Symbol",
+          sans-serif;
+      }
+
+      /* 스크롤바 디자인 (Select Box용) */
+      select[multiple]::-webkit-scrollbar {
+        width: 8px;
+      }
+      select[multiple]::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 4px;
+      }
+      select[multiple]::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+      }
+      select[multiple]::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+
+      /* 학교 로고 화면 및 인쇄 위치 스타일 */
+      .print-logo-position {
+        max-height: 3.8rem;
+        max-width: 9.5rem;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        display: block;
+      }
+
+      /* 하단 학교 로고 및 날짜/교시 뱃지 */
+      .seating-bottom-logo,
+      .attendance-bottom-logo {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+      }
+      .seating-bottom-logo .print-logo-position {
+        max-height: 3.36rem;
+        max-width: 10.2rem;
+      }
+      .attendance-bottom-logo .print-logo-position {
+        max-height: 3.8rem;
+        max-width: 9.5rem;
+      }
+      .date-period-badge {
+        border: 2px solid #475569;
+        border-radius: 0.5rem;
+        background-color: rgba(248, 250, 252, 0.95);
+      }
+
+      /* ================= 인쇄용 스타일 (기존 기능 유지 및 빈 페이지 방지 수정) ================= */
+      @page {
+        size: A4 portrait;
+        margin: 8mm 10mm;
+      }
+
+      @media print {
+        *,
+        *::before,
+        *::after {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
+        }
+
+        html,
+        body {
+          height: auto !important;
+          min-height: 0 !important;
+          margin: 0;
+          padding: 0;
+          background-color: white !important;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+
+        /* ── 인쇄 배경 및 그래픽 강제 보존 (화면과 100% 동일한 인쇄 보장) ── */
+        .exam-title-banner,
+        .bg-blue-600,
+        [class*="bg-blue-600"] {
+          background-color: #2563eb !important;
+          color: #ffffff !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+
+        .text-white,
+        [class*="text-white"] {
+          color: #ffffff !important;
+        }
+
+        .info-label-cell,
+        .bg-slate-100,
+        [class*="bg-slate-100"] {
+          background-color: #f1f5f9 !important;
+          color: #334155 !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+
+        thead.bg-blue-600,
+        table thead,
+        thead tr,
+        thead th {
+          background-color: #2563eb !important;
+          color: #ffffff !important;
+          border-color: #ffffff !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+
+        .highlight-cell,
+        .bg-yellow-50,
+        [class*="bg-yellow-50"] {
+          background-color: #fef9c3 !important;
+          color: #0f172a !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+
+        .text-rose-700, [class*="text-rose-700"] { color: #be123c !important; }
+        .text-rose-600, [class*="text-rose-600"] { color: #e11d48 !important; }
+        .text-blue-800, [class*="text-blue-800"] { color: #1e40af !important; }
+        .text-blue-600, [class*="text-blue-600"] { color: #2563eb !important; }
+        .text-slate-800, [class*="text-slate-800"] { color: #1e293b !important; }
+        .text-slate-600, [class*="text-slate-600"] { color: #475569 !important; }
+        .text-slate-400, [class*="text-slate-400"] { color: #94a3b8 !important; }
+
+        .teacher-desk-box,
+        div.teacher-desk,
+        [class*="bg-blue-600"][class*="text-white"] {
+          background-color: #2563eb !important;
+          color: #ffffff !important;
+          border: 2px solid #2563eb !important;
+          border-radius: 0.5rem !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+
+        .subject-badge-box,
+        .bg-rose-50,
+        [class*="bg-rose-50"] {
+          background-color: #fff1f2 !important;
+          color: #e11d48 !important;
+          border: 2px solid #f43f5e !important;
+          border-radius: 0.5rem !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+
+        .seat-card-box,
+        .bg-slate-50,
+        [class*="bg-slate-50"] {
+          background-color: #f8fafc !important;
+          border-color: #cbd5e1 !important;
+          border-radius: 0.75rem !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+
+        .seat-student-pill,
+        [class*="bg-white"][class*="rounded-md"] {
+          background-color: #ffffff !important;
+          color: #1e293b !important;
+          border: 1px solid #e2e8f0 !important;
+          border-radius: 0.375rem !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+
+        .print-hidden {
+          display: none !important;
+        }
+
+        #printable-area {
+          margin: 0;
+          padding: 0;
+          width: 100%;
+          display: block;
+        }
+
+        .printable-unit {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+
+        .attendance-sheet-wrapper {
+          box-sizing: border-box !important;
+          padding-top: 1.15cm !important;
+        }
+
+        .seating-chart-wrapper {
+          page-break-before: always !important;
+          box-sizing: border-box !important;
+          padding-top: 2.3cm !important;
+        }
+
+        .seating-chart-wrapper.seating-rows-5 {
+          padding-top: 3.5cm !important;
+        }
+
+        .seating-chart-wrapper.seating-rows-6 {
+          padding-top: 2.3cm !important;
+        }
+
+        .seating-chart-wrapper.seating-rows-7 {
+          padding-top: 0.75cm !important;
+        }
+
+        /* 각 과목별 인쇄 블록 다음에 페이지를 나누되, 마지막 블록 다음에는 나누지 않음 (최신 규격 적용) */
+        .subject-print-block:not(:last-child) {
+          page-break-after: always !important;
+          break-after: page !important;
+        }
+
+        .subject-print-block,
+        .attendance-sheet-wrapper,
+        .seating-chart-wrapper {
+          border: none !important;
+        }
+
+        .printable-container,
+        #attendance-sheet-area,
+        #seating-chart-area {
+          border: none !important;
+          outline: none !important;
+        }
+
+        #attendance-sheet-area {
+          font-size: 9.1pt !important;
+          box-sizing: border-box !important;
+          padding: 0.78rem 0.85rem !important;
+        }
+        #attendance-sheet-area h1 {
+          font-size: 20.8pt !important;
+        }
+        #attendance-sheet-area table {
+          font-size: 8.45pt !important;
+          line-height: 1.175 !important;
+        }
+        #attendance-sheet-area table th,
+        #attendance-sheet-area table td {
+          padding: 0.158rem 0.23rem !important;
+        }
+
+        #seating-chart-area {
+          font-size: 9pt !important;
+          box-sizing: border-box !important;
+          padding: 0.9rem 0.95rem !important;
+        }
+        #seating-chart-area .h-40 {
+          height: 6.42rem !important;
+        }
+        .seating-rows-7 #seating-chart-area .h-40,
+        .seating-rows-7.seating-chart-wrapper .h-40 {
+          height: 6.1rem !important;
+        }
+        #seating-chart-area .my-8 {
+          margin-top: 0.88rem !important;
+          margin-bottom: 0.88rem !important;
+        }
+
+        .printable-container .text-5xl {
+          font-size: 21pt !important;
+        }
+        .printable-container .text-3xl {
+          font-size: 14.5pt !important;
+        }
+        .printable-container .text-2xl {
+          font-size: 12.5pt !important;
+        }
+        .printable-container .text-xl {
+          font-size: 11.5pt !important;
+        }
+        .printable-container .p-3 {
+          padding: 0.35rem !important;
+        }
+        .printable-container .p-2 {
+          padding: 0.2rem 0.25rem !important;
+        }
+
+        .print-logo-position {
+          max-height: 2.34rem !important;
+          max-width: 7.2rem !important;
+          width: auto !important;
+          height: auto !important;
+          object-fit: contain !important;
+          display: block !important;
+        }
+
+        .date-period-badge {
+          border-width: 1.5px !important;
+          border-color: #475569 !important;
+          background-color: #f8fafc !important;
+        }
+        .attendance-bottom-logo {
+          display: flex !important;
+          justify-content: flex-end !important;
+          align-items: center !important;
+          margin-top: 0.32rem !important;
+          margin-bottom: 0 !important;
+          page-break-before: avoid !important;
+          break-before: avoid !important;
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+        .attendance-bottom-logo .print-logo-position {
+          max-height: 2.05rem !important;
+          max-width: 6.8rem !important;
+          display: block !important;
+        }
+        .seating-bottom-logo {
+          display: flex !important;
+          justify-content: flex-end !important;
+          align-items: center !important;
+          margin-top: 0.35rem !important;
+          margin-bottom: 0 !important;
+          page-break-before: avoid !important;
+          break-before: avoid !important;
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+        .seating-bottom-logo .print-logo-position {
+          max-height: 2.1rem !important;
+          max-width: 7.2rem !important;
+          display: block !important;
+        }
+        .seating-rows-7 .seating-bottom-logo {
+          margin-top: 0.14rem !important;
+        }
+        .seating-rows-7 .seating-bottom-logo .print-logo-position {
+          max-height: 1.75rem !important;
+        }
+
+        .printing-attendance .seating-chart-wrapper {
+          display: none !important;
+        }
+        .printing-seating-chart .attendance-sheet-wrapper {
+          display: none !important;
+        }
+        .printing-seating-chart .seating-chart-wrapper {
+          page-break-before: avoid !important;
+          break-before: avoid !important;
+        }
+      }
+
+      /* ── 서울시교육청 포털 상단 헤더 ── */
+      .gbe-header {
+        background: #ffffff;
+        border-bottom: 1px solid #e2eaf2;
+        box-shadow: 0 1px 0 rgba(15, 40, 80, 0.03);
+      }
+      .gbe-util-btn {
+        width: 30px;
+        height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        border: 1px solid #dbe5f0;
+        color: #5b7799;
+        background: #f6f9fd;
+        transition: all 0.15s;
+      }
+      .gbe-util-btn:hover {
+        background: #eaf2fc;
+        color: #2f80d6;
+        border-color: #c2d6ee;
+      }
+
+      /* ── 다크모드 (포털 야간 테마) ── */
+      .dark body {
+        background: #0a1730 !important;
+        color: #cdddf2;
+      }
+      .dark .gbe-header {
+        background: #0c1c3a;
+        border-bottom-color: #1d3563;
+        box-shadow: none;
+      }
+      .dark .gbe-util-btn {
+        background: #122a52;
+        border-color: #244a86;
+        color: #9fc0ec;
+      }
+      .dark .gbe-util-btn:hover {
+        background: #1a3a6e;
+        color: #fff;
+      }
+      .dark .seoul-logo {
+        background: #fff;
+        border-radius: 10px;
+        padding: 5px 10px;
+      }
+
+      /* 설정 필드 레이블 스타일 (파스텔 톤 배경 및 폰트 크기 업그레이드) */
+      .custom-pastel-label {
+        display: inline-block !important;
+        font-size: 0.85rem !important; /* 한 단계 크게 (기존 text-[11px] sm:text-xs 에서 13.6px 정도로 업그레이드) */
+        font-weight: 700 !important;
+        padding: 0.15rem 0.6rem !important;
+        border-radius: 0.375rem !important;
+        margin-bottom: 0.375rem !important;
+        width: fit-content !important;
+        letter-spacing: -0.02em !important;
+      }
+      /* 부드러운 파스텔 블루 / 라벤더 계열 배경 */
+      .bg-pastel-blue {
+        background-color: #e0f2fe !important; /* blue-100 */
+        color: #0369a1 !important; /* blue-700 */
+      }
+      .dark .bg-pastel-blue {
+        background-color: #0c4a6e !important; /* blue-900 */
+        color: #38bdf8 !important; /* blue-400 */
+      }
+      
+      /* 고사일, 교시, 과목명 등 하단 생성 옵션용 파스텔 퍼플 계열 */
+      .bg-pastel-purple {
+        background-color: #f3e8ff !important; /* purple-100 */
+        color: #6b21a8 !important; /* purple-700 */
+      }
+      .dark .bg-pastel-purple {
+        background-color: #4c1d95 !important; /* purple-900 */
+        color: #c084fc !important; /* purple-400 */
+      }
+
+      /* 학년도 숫자 입력 스핀 버튼이 항상 노출되며 깔끔하게 보이도록 설정 */
+      input[type="number"]::-webkit-outer-spin-button,
+      input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: auto !important;
+        opacity: 0.8 !important;
+        cursor: pointer;
+      }
+      input[type="number"] {
+        -moz-appearance: textfield !important;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-[#F4F6F9] font-sans antialiased text-slate-800 min-h-screen print:min-h-0 print:bg-white print:block flex flex-col"
+  >
+    <div id="root" class="flex-grow flex flex-col print:block">
+      <!-- 서울시교육청 포털 상단 헤더 -->
+      <header class="gbe-header print-hidden sticky top-0 z-40">
+        <div
+          class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-6"
+        >
+          <a
+            href="https://wonmook.sen.hs.kr/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center flex-shrink-0"
+            aria-label="원묵고등학교"
+          >
+            <img
+              id="header-logo"
+              src="./wonmook_logo.jpg"
+              alt="원묵고등학교"
+              class="h-10 w-auto object-contain"
+            />
+          </a>
+          <div class="ml-auto flex items-center gap-2 sm:gap-3">
+            <div class="hidden sm:flex items-center gap-1 mr-1">
+              <span class="text-[11px] font-semibold text-[#94a8c0] mr-1"
+                >글꼴크기</span
+              >
+              <button id="font-larger" class="gbe-util-btn" title="글꼴 크게">
+                <svg
+                  class="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
+                  <path stroke-linecap="round" d="M12 5v14M5 12h14" />
+                </svg>
+              </button>
+              <button id="font-default" class="gbe-util-btn" title="글꼴 기본">
+                <svg
+                  class="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M4 4v6h6M20 20v-6h-6M20 4l-7 7M11 13l-7 7"
+                  />
+                </svg>
+              </button>
+              <button id="font-smaller" class="gbe-util-btn" title="글꼴 작게">
+                <svg
+                  class="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
+                  <path stroke-linecap="round" d="M5 12h14" />
+                </svg>
+              </button>
+            </div>
+            <button
+              id="dark-toggle"
+              class="flex items-center gap-1.5 px-3 h-8 rounded-full bg-[#0c1c3a] text-white text-xs font-bold hover:bg-[#13294d] transition-colors"
+            >
+              <span id="dark-icon"
+                ><svg
+                  class="w-3.5 h-3.5"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" /></svg
+              ></span>
+              <span id="dark-label">다크모드</span>
+            </button>
+            <button
+              id="open-upload-modal-btn"
+              class="flex items-center justify-center w-10 h-10 rounded-full bg-transparent text-slate-700 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ml-1 border-none"
+              title="데이터 관리 (관리자)"
+            >
+              <svg
+                class="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Hero — 업무포털 배너 스타일 -->
+      <div class="print-hidden w-full max-w-7xl mx-auto px-4 sm:px-6 pt-7">
+        <div
+          class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1b5fa6] via-[#2575c0] to-[#3a92d6] px-7 sm:px-10 py-9 sm:py-11 shadow-[0_12px_40px_rgba(31,99,166,0.28)]"
+        >
+          <div class="absolute inset-0 z-0 opacity-40 pointer-events-none">
+            <div
+              class="absolute -top-16 -right-10 w-72 h-72 rounded-full bg-white/15 blur-2xl"
+            ></div>
+            <div
+              class="absolute -bottom-24 right-1/4 w-80 h-80 rounded-full bg-[#5fc6e8]/25 blur-3xl"
+            ></div>
+            <div
+              class="absolute top-1/3 -left-12 w-56 h-56 rounded-full bg-[#34b3a0]/20 blur-2xl"
+            ></div>
+          </div>
+          <div
+            class="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6"
+          >
+            <div>
+              <div class="flex items-center gap-2 mb-4">
+                <span
+                  class="inline-flex items-center gap-1.5 bg-white/15 text-white px-3 py-1 rounded-full text-xs font-semibold border border-white/25 backdrop-blur-sm"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-3.5 w-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  업무 자동화 도구
+                </span>
+                <span
+                  class="inline-flex items-center bg-amber-400 text-amber-900 px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider shadow-sm"
+                  >DATA POWERED</span
+                >
+              </div>
+              <h1
+                class="text-3xl md:text-[42px] leading-tight font-extrabold text-white tracking-tight drop-shadow-sm"
+              >
+                응시현황표/자리배치표 생성 시스템
+              </h1>
+              <p class="text-base text-blue-50/90 mt-3 font-medium">
+                선택 과목의 시험 시간표를 분석하여 최적화된 응시현황표와
+                자리배치표를 빠르고 정확하게 생성합니다.
+              </p>
+            </div>
+            <div class="hidden md:block flex-shrink-0">
+              <svg
+                width="150"
+                height="120"
+                viewBox="0 0 150 120"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                class="opacity-95"
+              >
+                <rect
+                  x="18"
+                  y="20"
+                  width="100"
+                  height="80"
+                  rx="9"
+                  fill="#ffffff"
+                  fill-opacity="0.95"
+                />
+                <rect
+                  x="18"
+                  y="20"
+                  width="100"
+                  height="20"
+                  rx="9"
+                  fill="#bfe0fb"
+                />
+                <rect x="18" y="34" width="100" height="6" fill="#bfe0fb" />
+                <line
+                  x1="51"
+                  y1="40"
+                  x2="51"
+                  y2="100"
+                  stroke="#dbe9f7"
+                  stroke-width="2"
+                />
+                <line
+                  x1="84"
+                  y1="40"
+                  x2="84"
+                  y2="100"
+                  stroke="#dbe9f7"
+                  stroke-width="2"
+                />
+                <line
+                  x1="18"
+                  y1="58"
+                  x2="118"
+                  y2="58"
+                  stroke="#dbe9f7"
+                  stroke-width="2"
+                />
+                <line
+                  x1="18"
+                  y1="78"
+                  x2="118"
+                  y2="78"
+                  stroke="#dbe9f7"
+                  stroke-width="2"
+                />
+                <rect
+                  x="56"
+                  y="62"
+                  width="23"
+                  height="12"
+                  rx="3"
+                  fill="#34b3a0"
+                />
+                <rect
+                  x="89"
+                  y="82"
+                  width="23"
+                  height="12"
+                  rx="3"
+                  fill="#2575c0"
+                />
+                <circle cx="110" cy="30" r="4" fill="#1b5fa6" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- [수정] print:mt-0 및 print:pb-0 추가 : 인쇄 시 하단 여백 때문에 빈 페이지 생기는 현상 방지 -->
+      <main
+        class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-8 mt-8 print:mt-0 relative z-20 pb-16 print:pb-0 print:mb-0"
+      >
+        <!-- 패스워드 인증 모달 -->
+        <div
+          id="auth-modal"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm print-hidden hidden"
+        >
+          <div
+            class="bg-white rounded-3xl shadow-xl p-8 sm:p-12 w-full max-w-md transform transition-all relative"
+          >
+            <button
+              id="close-admin-auth-btn"
+              class="absolute top-6 right-6 text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+            <h2 class="text-2xl font-bold text-center text-slate-800 mb-2">
+              관리자 모드 접속
+            </h2>
+            <p class="text-slate-500 text-center mb-8">
+              관리자 암호를 입력해주세요.
+            </p>
+            <div>
+              <input
+                type="password"
+                id="access-password"
+                class="w-full p-3 mb-3 bg-slate-50 border border-slate-200 rounded-xl text-center text-xl font-mono tracking-widest focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                placeholder="••••••••"
+              />
+              <button
+                id="admin-btn"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-colors shadow"
+              >
+                관리자로 접속하기
+              </button>
+              <p
+                id="auth-error"
+                class="text-red-500 text-sm text-center mt-3 hidden"
+              >
+                암호가 올바르지 않습니다.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div
+          id="upload-modal"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm print-hidden hidden"
+        >
+          <div
+            class="bg-white rounded-3xl shadow-xl w-full max-w-4xl transform transition-all relative overflow-hidden flex flex-col max-h-[92vh]"
+          >
+            <div
+              class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 to-indigo-600"
+            ></div>
+            <button
+              id="close-upload-modal-btn"
+              class="absolute top-6 right-6 text-slate-400 hover:text-slate-600 transition-colors z-10"
+              title="닫기"
+            >
+              <svg
+                class="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+
+            <!-- 관리자 모달 헤더 & 탭 네비게이션 -->
+            <div class="px-6 pt-6 sm:px-8 sm:pt-8 pb-3 border-b border-slate-100 flex-shrink-0">
+              <div class="flex items-center space-x-3 mb-4">
+                <div class="bg-blue-600 text-white p-2 rounded-xl shadow-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 class="text-xl font-extrabold text-slate-800">
+                    시험 데이터 및 시스템 관리
+                  </h2>
+                  <p class="text-xs text-slate-500">
+                    시험 데이터 업로드, 기존 데이터 수정/삭제/추가, 기본 학사 정보를 관리합니다.
+                  </p>
+                </div>
+              </div>
+
+              <!-- 탭 메뉴 버튼들 -->
+              <div class="flex space-x-2 border-b border-slate-200 text-sm font-semibold">
+                <button
+                  id="tab-btn-upload"
+                  type="button"
+                  class="pb-2.5 px-3.5 text-blue-600 border-b-2 border-blue-600 flex items-center transition-colors cursor-pointer"
+                >
+                  <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                  </svg>
+                  데이터 업로드
+                </button>
+                <button
+                  id="tab-btn-manage"
+                  type="button"
+                  class="pb-2.5 px-3.5 text-slate-500 hover:text-slate-800 border-b-2 border-transparent flex items-center transition-colors cursor-pointer"
+                >
+                  <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                  </svg>
+                  데이터 관리 (수정·삭제·추가)
+                </button>
+                <button
+                  id="tab-btn-settings"
+                  type="button"
+                  class="pb-2.5 px-3.5 text-slate-500 hover:text-slate-800 border-b-2 border-transparent flex items-center transition-colors cursor-pointer"
+                >
+                  <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                  </svg>
+                  기본 설정 (디폴트/로고)
+                </button>
+              </div>
+            </div>
+
+            <!-- 모달 내부 스크롤 콘텐츠 -->
+            <div class="p-6 sm:p-8 overflow-y-auto flex-grow space-y-6">
+
+              <!-- ================= [탭 1] 데이터 업로드 패널 ================= -->
+              <div id="tab-panel-upload" class="space-y-5">
+                <!-- 업로드 대상 선택 필드 -->
+                <div class="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200/80">
+                  <div class="text-xs font-bold text-slate-700 mb-3 flex items-center">
+                    <span class="w-2.5 h-2.5 rounded-full bg-blue-600 mr-2"></span>
+                    1. 업로드 대상 지정
+                  </div>
+                  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <!-- 업로드 학년도 -->
+                    <div>
+                      <label for="upload-school-year" class="block text-xs font-semibold text-slate-500 mb-1">업로드 학년도</label>
+                      <input
+                        type="number"
+                        id="upload-school-year"
+                        min="2020"
+                        max="2035"
+                        class="w-full bg-white p-2.5 text-sm font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      />
+                    </div>
+                    <!-- 업로드 학기 -->
+                    <div>
+                      <label for="upload-semester" class="block text-xs font-semibold text-slate-500 mb-1">업로드 학기</label>
+                      <select
+                        id="upload-semester"
+                        class="w-full bg-white p-2.5 text-sm font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                      >
+                        <option value="1">1학기</option>
+                        <option value="2">2학기</option>
+                      </select>
+                    </div>
+                    <!-- 업로드 고사 구분 -->
+                    <div>
+                      <label for="upload-exam-type" class="block text-xs font-semibold text-slate-500 mb-1">업로드 고사</label>
+                      <select
+                        id="upload-exam-type"
+                        class="w-full bg-white p-2.5 text-sm font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                      >
+                        <option value="중간고사">중간고사</option>
+                        <option value="기말고사">기말고사</option>
+                      </select>
+                    </div>
+                    <!-- 업로드 학년 구분 -->
+                    <div>
+                      <label for="upload-target-grade" class="block text-xs font-semibold text-slate-500 mb-1">업로드 학년</label>
+                      <select
+                        id="upload-target-grade"
+                        class="w-full bg-white p-2.5 text-sm font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                      >
+                        <option value="1">1학년</option>
+                        <option value="2" selected>2학년</option>
+                        <option value="3">3학년</option>
+                        <option value="all">전체 (파일 내 전학년)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 2. 업로드 방식 선택 (덮어쓰기 vs 추가/병합) -->
+                <div class="bg-indigo-50/50 p-4 sm:p-5 rounded-2xl border border-indigo-100/90">
+                  <div class="text-xs font-bold text-indigo-900 mb-3 flex items-center justify-between">
+                    <span class="flex items-center">
+                      <span class="w-2.5 h-2.5 rounded-full bg-indigo-600 mr-2"></span>
+                      2. 업로드 방식 선택 (기존 데이터 처리 방법)
+                    </span>
+                    <span class="text-[11px] text-indigo-600 font-normal">필요한 방식을 선택하세요</span>
+                  </div>
+
+                  <div class="space-y-2.5">
+                    <!-- 옵션 1: 선택 학년 덮어쓰기 (기본값) -->
+                    <label class="flex items-start p-3 bg-white rounded-xl border border-indigo-200/80 hover:border-indigo-400 cursor-pointer transition-all shadow-xs">
+                      <input
+                        type="radio"
+                        name="upload-save-mode"
+                        value="overwrite_grade"
+                        checked
+                        class="mt-1 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                      />
+                      <div class="ml-3">
+                        <span class="block text-xs font-bold text-slate-800">
+                          선택한 학년 기존 데이터 삭제 후 새로 등록 (추천)
+                        </span>
+                        <span class="block text-[11px] text-slate-500 mt-0.5">
+                          업로드하는 해당 학년의 기존 데이터만 깔끔히 삭제하고 새 파일로 교체하며, 타 학년(예: 1·3학년) 데이터는 안전하게 유지됩니다.
+                        </span>
+                      </div>
+                    </label>
+
+                    <!-- 옵션 2: 해당 시험 전체 덮어쓰기 -->
+                    <label class="flex items-start p-3 bg-white rounded-xl border border-rose-200/80 hover:border-rose-400 cursor-pointer transition-all shadow-xs">
+                      <input
+                        type="radio"
+                        name="upload-save-mode"
+                        value="overwrite_all"
+                        class="mt-1 text-rose-600 focus:ring-rose-500 h-4 w-4"
+                      />
+                      <div class="ml-3">
+                        <span class="block text-xs font-bold text-rose-800 flex items-center">
+                          해당 시험 전체 데이터 초기화 후 새로 등록 (완전 덮어쓰기)
+                          <span class="ml-2 bg-rose-100 text-rose-700 text-[10px] px-1.5 py-0.5 rounded font-semibold">초기화</span>
+                        </span>
+                        <span class="block text-[11px] text-slate-500 mt-0.5">
+                          선택한 시험의 1·2·3학년 기존 데이터를 모두 깨끗이 지우고, 지금 업로드하는 파일 내용만으로 새로 저장합니다.
+                        </span>
+                      </div>
+                    </label>
+
+                    <!-- 옵션 3: 기존 데이터에 추가/병합 -->
+                    <label class="flex items-start p-3 bg-white rounded-xl border border-slate-200 hover:border-slate-400 cursor-pointer transition-all shadow-xs">
+                      <input
+                        type="radio"
+                        name="upload-save-mode"
+                        value="merge"
+                        class="mt-1 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                      />
+                      <div class="ml-3">
+                        <span class="block text-xs font-bold text-slate-800">
+                          기존 데이터를 삭제하지 않고 누적 추가 (병합)
+                        </span>
+                        <span class="block text-[11px] text-slate-500 mt-0.5">
+                          기존 등록된 데이터를 그대로 둔 채, 새 파일의 데이터를 뒤에 덧붙여 저장합니다.
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- 3. 파일 업로드 영역 -->
+                <label id="csv-upload-dropzone" for="csv-upload" class="w-full group block">
+                  <div
+                    class="flex flex-col items-center justify-center w-full h-40 border-2 border-slate-200 border-dashed rounded-2xl cursor-pointer bg-[#f8fafc] group-hover:bg-[#f1f5f9] group-hover:border-blue-400 group-hover:shadow-inner transition-all duration-300 relative overflow-hidden"
+                  >
+                    <div
+                      class="bg-white shadow-sm p-3.5 rounded-full mb-2 group-hover:scale-110 group-hover:text-blue-600 group-hover:shadow-md transition-all duration-300 text-slate-400"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-7 w-7"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                        />
+                      </svg>
+                    </div>
+                    <p class="mb-1 text-sm text-slate-700 font-semibold">
+                      <span class="font-bold text-blue-600">클릭하여 파일 업로드</span> 또는 이 영역에 드래그
+                    </p>
+                    <p class="text-xs text-slate-400 font-medium bg-white/70 px-3 py-1 rounded-full border border-slate-100">
+                      지원 확장자: Excel (.xlsx, .xls) / CSV (UTF-8)
+                    </p>
+                  </div>
+                </label>
+                <input id="csv-upload" type="file" class="hidden" accept=".csv, .xlsx, .xls" multiple />
+
+                <!-- 업로드 완료 알림 카드 (모달 내부) -->
+                <div
+                  id="upload-success-card"
+                  class="bg-gradient-to-br from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-2xl p-5 shadow-sm hidden"
+                >
+                  <div class="flex items-start">
+                    <div class="bg-emerald-600 text-white p-2 rounded-xl mr-3.5 shadow-sm flex-shrink-0 mt-0.5">
+                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+                      </svg>
+                    </div>
+                    <div class="flex-grow">
+                      <div class="flex items-center justify-between">
+                        <h3 class="text-base font-bold text-emerald-900">
+                          데이터 업로드가 완료되었습니다!
+                        </h3>
+                        <button
+                          id="dismiss-upload-success-btn"
+                          type="button"
+                          class="text-emerald-500 hover:text-emerald-700 text-xs font-semibold px-2 py-1 rounded-md hover:bg-emerald-100 transition-colors cursor-pointer"
+                        >
+                          닫기
+                        </button>
+                      </div>
+                      <p id="upload-success-detail-text" class="text-xs text-emerald-800 mt-1 font-medium leading-relaxed">
+                        시험 데이터가 데이터베이스에 안전하게 반영되었습니다.
+                      </p>
+                      <div class="grid grid-cols-3 gap-2 mt-3 bg-white/80 rounded-xl p-3 border border-emerald-100 text-center">
+                        <div>
+                          <span class="block text-[11px] text-slate-500 font-semibold">이번 등록 인원</span>
+                          <span id="stat-current-count" class="text-base font-extrabold text-emerald-600">0명</span>
+                        </div>
+                        <div class="border-x border-emerald-100">
+                          <span class="block text-[11px] text-slate-500 font-semibold">보존된 타 학년</span>
+                          <span id="stat-retained-count" class="text-base font-extrabold text-slate-600">0명</span>
+                        </div>
+                        <div>
+                          <span class="block text-[11px] text-slate-500 font-semibold">총 누적 학생</span>
+                          <span id="stat-total-count" class="text-base font-extrabold text-blue-600">0명</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <p
+                  id="loading-message"
+                  class="text-center text-blue-600 font-bold hidden flex items-center justify-center text-sm py-2"
+                >
+                  <svg
+                    class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span id="loading-text">파일을 분석 및 업로드하고 있습니다...</span>
+                </p>
+              </div>
+
+              <!-- ================= [탭 2] 데이터 직접 관리 (조회·추가·수정·삭제) 패널 ================= -->
+              <div id="tab-panel-manage" class="space-y-4 hidden">
+                <!-- 1. 관리할 시험 선택 바 -->
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-wrap items-end gap-3 justify-between">
+                  <div class="flex flex-wrap items-center gap-3">
+                    <div>
+                      <label for="manage-school-year" class="block text-xs font-bold text-slate-600 mb-1">학년도</label>
+                      <input
+                        type="number"
+                        id="manage-school-year"
+                        min="2020"
+                        max="2035"
+                        class="w-24 bg-white p-2 text-sm font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label for="manage-semester" class="block text-xs font-bold text-slate-600 mb-1">학기</label>
+                      <select
+                        id="manage-semester"
+                        class="w-24 bg-white p-2 text-sm font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                      >
+                        <option value="1">1학기</option>
+                        <option value="2">2학기</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label for="manage-exam-type" class="block text-xs font-bold text-slate-600 mb-1">고사</label>
+                      <select
+                        id="manage-exam-type"
+                        class="w-28 bg-white p-2 text-sm font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                      >
+                        <option value="중간고사">중간고사</option>
+                        <option value="기말고사">기말고사</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <button
+                    id="btn-load-manage-data"
+                    type="button"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs sm:text-sm shadow transition-all cursor-pointer flex items-center h-10"
+                  >
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    데이터 조회하기
+                  </button>
+                </div>
+
+                <!-- 2. 데이터 요약 및 관리 툴바 (조회 후에만 표시) -->
+                <div id="manage-data-toolbar" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3 hidden">
+                  <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                    <div class="flex items-center space-x-2">
+                      <span class="text-xs font-bold text-slate-700">총 등록 인원:</span>
+                      <span id="manage-stat-total" class="text-sm font-extrabold text-blue-600">0명</span>
+                      <div class="flex items-center space-x-1.5 ml-2 text-xs">
+                        <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-semibold">1학년 <b id="manage-stat-grade1" class="text-blue-600">0</b>명</span>
+                        <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-semibold">2학년 <b id="manage-stat-grade2" class="text-emerald-600">0</b>명</span>
+                        <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-semibold">3학년 <b id="manage-stat-grade3" class="text-purple-600">0</b>명</span>
+                      </div>
+                    </div>
+
+                    <!-- 학생 직접 추가 버튼 -->
+                    <button
+                      id="btn-open-add-student-modal"
+                      type="button"
+                      class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs shadow-sm transition-all cursor-pointer flex items-center"
+                    >
+                      <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                      </svg>
+                      학생 데이터 직접 추가
+                    </button>
+                  </div>
+
+                  <!-- 데이터 일괄 삭제 도구 영역 -->
+                  <div class="flex flex-wrap items-center justify-between gap-3 bg-red-50/60 p-3 rounded-xl border border-red-100">
+                    <div class="flex items-center space-x-2">
+                      <span class="text-xs font-bold text-red-800 flex items-center">
+                        <svg class="w-4 h-4 mr-1 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                        특정 학년 삭제:
+                      </span>
+                      <select
+                        id="manage-delete-target-grade"
+                        class="bg-white text-xs font-bold p-1.5 rounded-lg border border-red-200 text-slate-700"
+                      >
+                        <option value="1">1학년 데이터</option>
+                        <option value="2">2학년 데이터</option>
+                        <option value="3">3학년 데이터</option>
+                      </select>
+                      <button
+                        id="btn-delete-grade-data"
+                        type="button"
+                        class="bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-colors cursor-pointer"
+                      >
+                        선택 학년 삭제
+                      </button>
+                    </div>
+
+                    <!-- 이 시험 전체 삭제 버튼 -->
+                    <button
+                      id="btn-delete-entire-exam"
+                      type="button"
+                      class="bg-white hover:bg-red-100 text-red-700 border border-red-300 font-bold px-3 py-1.5 rounded-lg text-xs transition-colors cursor-pointer flex items-center ml-auto"
+                    >
+                      <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                      </svg>
+                      해당 시험 전체 데이터 초기화(삭제)
+                    </button>
+                  </div>
+
+                  <!-- 검색 및 학년 필터 -->
+                  <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                    <div class="flex items-center space-x-2">
+                      <span class="text-xs font-bold text-slate-600">학년 필터:</span>
+                      <select
+                        id="manage-table-grade-filter"
+                        class="bg-slate-50 text-xs font-bold p-1.5 rounded-lg border border-slate-200 cursor-pointer"
+                      >
+                        <option value="all">전체 학년 보기</option>
+                        <option value="1">1학년만</option>
+                        <option value="2">2학년만</option>
+                        <option value="3">3학년만</option>
+                      </select>
+                    </div>
+
+                    <div class="flex items-center space-x-2 flex-grow max-w-xs ml-auto">
+                      <div class="relative w-full">
+                        <input
+                          type="text"
+                          id="manage-search-input"
+                          placeholder="이름, 학번, 과목 검색..."
+                          class="w-full bg-slate-50 pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                        <svg class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 3. 학생 데이터 테이블 목록 -->
+                <div id="manage-table-container" class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hidden">
+                  <div class="overflow-x-auto max-h-[380px]">
+                    <table class="min-w-full text-xs text-left">
+                      <thead class="bg-slate-50 text-slate-600 font-bold sticky top-0 z-10 border-b border-slate-200">
+                        <tr>
+                          <th class="px-3 py-2.5">학번</th>
+                          <th class="px-3 py-2.5">학년/반/번호</th>
+                          <th class="px-3 py-2.5">성명</th>
+                          <th class="px-3 py-2.5">고사일자</th>
+                          <th class="px-3 py-2.5">교시</th>
+                          <th class="px-3 py-2.5">과목명</th>
+                          <th class="px-3 py-2.5 text-center w-28">관리</th>
+                        </tr>
+                      </thead>
+                      <tbody id="manage-student-table-body" class="divide-y divide-slate-100 text-slate-700">
+                        <!-- 동적 렌더링 -->
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="p-2.5 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-500 text-right">
+                    표시 인원: <span id="manage-showing-count" class="font-bold text-slate-800">0</span>건
+                  </div>
+                </div>
+
+                <!-- 데이터 조회 전 안내 메시지 -->
+                <div id="manage-empty-placeholder" class="text-center py-12 bg-slate-50/80 rounded-2xl border border-dashed border-slate-200">
+                  <svg class="w-10 h-10 mx-auto text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                  </svg>
+                  <p class="text-xs font-semibold text-slate-600">위의 학년도, 학기, 고사를 선택하고 [데이터 조회하기]를 눌러주세요.</p>
+                  <p class="text-[11px] text-slate-400 mt-0.5">등록된 학생 목록 확인 및 추가, 수정, 삭제 작업을 진행할 수 있습니다.</p>
+                </div>
+              </div>
+
+              <!-- ================= [탭 3] 기본 설정 (디폴트/로고) 패널 ================= -->
+              <div id="tab-panel-settings" class="space-y-6 hidden">
+                <!-- 섹션 1: 디폴트 학사 정보 설정 -->
+                <div class="bg-gradient-to-br from-blue-50/70 to-indigo-50/40 border border-blue-100/80 rounded-2xl p-5 sm:p-6 shadow-sm">
+                  <div class="flex items-center justify-between mb-3 pb-2 border-b border-blue-100">
+                    <div class="flex items-center">
+                      <div class="bg-blue-600 p-2 rounded-xl text-white mr-3 shadow-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h2 class="text-lg font-bold text-slate-800">
+                          기본 학사 정보 (디폴트) 설정
+                        </h2>
+                        <p class="text-xs text-slate-500">
+                          앱 첫 접속 시 화면에 기본으로 선택되어 나타날 학사 정보를 설정합니다.
+                        </p>
+                      </div>
+                    </div>
+                    <span class="text-xs font-semibold bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full">
+                      기본값 지정
+                    </span>
+                  </div>
+
+                  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 my-4">
+                    <!-- 디폴트 학년도 -->
+                    <div class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
+                      <label for="default-school-year" class="block text-xs font-bold text-slate-600 mb-1">기본 학년도</label>
+                      <input
+                        type="number"
+                        id="default-school-year"
+                        min="2020"
+                        max="2035"
+                        class="w-full bg-slate-50 p-2 text-sm font-bold rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      />
+                    </div>
+                    <!-- 디폴트 학기 -->
+                    <div class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
+                      <label for="default-semester" class="block text-xs font-bold text-slate-600 mb-1">기본 학기</label>
+                      <select
+                        id="default-semester"
+                        class="w-full bg-slate-50 p-2 text-sm font-bold rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                      >
+                        <option value="1">1학기</option>
+                        <option value="2">2학기</option>
+                      </select>
+                    </div>
+                    <!-- 디폴트 고사 구분 -->
+                    <div class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
+                      <label for="default-exam-type" class="block text-xs font-bold text-slate-600 mb-1">기본 고사</label>
+                      <select
+                        id="default-exam-type"
+                        class="w-full bg-slate-50 p-2 text-sm font-bold rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                      >
+                        <option value="중간고사">중간고사</option>
+                        <option value="기말고사">기말고사</option>
+                      </select>
+                    </div>
+                    <!-- 디폴트 학년 -->
+                    <div class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
+                      <label for="default-target-grade" class="block text-xs font-bold text-slate-600 mb-1">기본 학년</label>
+                      <select
+                        id="default-target-grade"
+                        class="w-full bg-slate-50 p-2 text-sm font-bold rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                      >
+                        <option value="1">1학년</option>
+                        <option value="2">2학년</option>
+                        <option value="3">3학년</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center justify-between pt-2">
+                    <span id="default-settings-msg" class="text-xs font-medium text-emerald-600 hidden flex items-center">
+                      <svg class="w-4 h-4 mr-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                      기본 학사 정보가 저장되었습니다.
+                    </span>
+                    <button
+                      id="save-default-settings-btn"
+                      type="button"
+                      class="ml-auto bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs sm:text-sm shadow transition-all cursor-pointer flex items-center"
+                    >
+                      기본 학사 정보 저장
+                    </button>
+                  </div>
+                </div>
+
+                <!-- 섹션 2: 로고 설정 -->
+                <div class="pt-4 border-t border-slate-200">
+                  <div class="mb-4 flex items-center">
+                    <div class="bg-emerald-50 p-2 rounded-xl mr-3 text-emerald-600">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-6 w-6"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
+                      </svg>
+                    </div>
+                    <div>
+                      <h2 class="text-lg font-bold text-slate-800">학교 로고 설정</h2>
+                      <p class="text-xs text-slate-500">
+                        인쇄 문서 상단 및 웹 헤더에 표시될 학교 로고를 설정합니다.
+                      </p>
+                    </div>
+                  </div>
+                  <div id="logo-controls"></div>
+                  <input
+                    id="logo-upload"
+                    type="file"
+                    class="hidden"
+                    accept="image/*"
+                  />
+                </div>
+              </div>
+
+              <!-- 공통 에러 메시지 알림 -->
+              <p
+                id="error-message"
+                class="text-center text-red-600 mt-4 bg-red-50 border border-red-200 p-3 rounded-xl font-medium hidden flex items-center justify-center text-xs sm:text-sm"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5 mr-2 flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span id="error-text"></span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 학생 레코드 직접 추가 / 수정 모달 -->
+        <div
+          id="student-edit-modal"
+          class="fixed inset-0 z-60 flex items-center justify-center bg-black/60 backdrop-blur-sm print-hidden hidden"
+        >
+          <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 sm:p-7 transform transition-all relative border border-slate-100">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <h3 id="student-edit-modal-title" class="text-base font-extrabold text-slate-800 flex items-center">
+                학생 데이터 추가 / 수정
+              </h3>
+              <button
+                id="close-student-edit-modal-btn"
+                type="button"
+                class="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
+
+            <form id="student-edit-form" class="space-y-3.5">
+              <input type="hidden" id="edit-student-index" value="-1" />
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label for="edit-student-id" class="block text-xs font-bold text-slate-600 mb-1">학번 (5자리)</label>
+                  <input
+                    type="text"
+                    id="edit-student-id"
+                    placeholder="예: 20101"
+                    required
+                    class="w-full bg-slate-50 p-2 text-xs font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label for="edit-student-name" class="block text-xs font-bold text-slate-600 mb-1">학생 성명</label>
+                  <input
+                    type="text"
+                    id="edit-student-name"
+                    placeholder="예: 홍길동"
+                    required
+                    class="w-full bg-slate-50 p-2 text-xs font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-3 gap-3">
+                <div>
+                  <label for="edit-student-grade" class="block text-xs font-bold text-slate-600 mb-1">학년</label>
+                  <input
+                    type="number"
+                    id="edit-student-grade"
+                    min="1"
+                    max="3"
+                    required
+                    class="w-full bg-slate-50 p-2 text-xs font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label for="edit-student-class" class="block text-xs font-bold text-slate-600 mb-1">반</label>
+                  <input
+                    type="number"
+                    id="edit-student-class"
+                    min="1"
+                    max="20"
+                    required
+                    class="w-full bg-slate-50 p-2 text-xs font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label for="edit-student-number" class="block text-xs font-bold text-slate-600 mb-1">번호</label>
+                  <input
+                    type="number"
+                    id="edit-student-number"
+                    min="1"
+                    max="50"
+                    required
+                    class="w-full bg-slate-50 p-2 text-xs font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label for="edit-student-date" class="block text-xs font-bold text-slate-600 mb-1">고사일자 (YYYY-MM-DD)</label>
+                  <input
+                    type="text"
+                    id="edit-student-date"
+                    placeholder="2026-05-02"
+                    required
+                    class="w-full bg-slate-50 p-2 text-xs font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label for="edit-student-period" class="block text-xs font-bold text-slate-600 mb-1">교시 (숫자)</label>
+                  <input
+                    type="number"
+                    id="edit-student-period"
+                    min="1"
+                    max="7"
+                    placeholder="1"
+                    required
+                    class="w-full bg-slate-50 p-2 text-xs font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label for="edit-student-subject" class="block text-xs font-bold text-slate-600 mb-1">응시 과목명</label>
+                  <input
+                    type="text"
+                    id="edit-student-subject"
+                    placeholder="예: 공통수학1"
+                    required
+                    class="w-full bg-slate-50 p-2 text-xs font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label for="edit-student-room" class="block text-xs font-bold text-slate-600 mb-1">고사실 (예: 2-1교실)</label>
+                  <input
+                    type="text"
+                    id="edit-student-room"
+                    placeholder="예: 2-1교실"
+                    class="w-full bg-slate-50 p-2 text-xs font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label for="edit-student-proctor" class="block text-xs font-bold text-slate-600 mb-1">감독/지도교사 성명</label>
+                <input
+                  type="text"
+                  id="edit-student-proctor"
+                  placeholder="예: 김선생"
+                  class="w-full bg-slate-50 p-2 text-xs font-bold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                />
+              </div>
+
+              <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  id="cancel-student-edit-btn"
+                  class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  id="save-student-edit-btn"
+                  class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs shadow transition-all cursor-pointer"
+                >
+                  저장하기
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- 데이터 삭제 확인 모달 -->
+        <div
+          id="delete-confirm-modal"
+          class="fixed inset-0 z-70 flex items-center justify-center bg-black/60 backdrop-blur-sm print-hidden hidden"
+        >
+          <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 transform transition-all relative border border-slate-100 text-center">
+            <div class="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-red-100 text-red-600 mb-4 ring-8 ring-red-50">
+              <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+              </svg>
+            </div>
+            <h3 id="delete-confirm-title" class="text-base font-extrabold text-slate-800">
+              데이터를 삭제하시겠습니까?
+            </h3>
+            <p id="delete-confirm-description" class="text-xs text-slate-500 mt-2 font-medium leading-relaxed">
+              이 작업은 되돌릴 수 없으며, 서버의 해당 시험 데이터가 즉시 삭제됩니다.
+            </p>
+            <div class="mt-6 flex gap-2.5">
+              <button
+                type="button"
+                id="cancel-delete-confirm-btn"
+                class="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                id="proceed-delete-confirm-btn"
+                class="w-1/2 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs shadow-md transition-all cursor-pointer"
+              >
+                삭제 확정
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 업로드 완료 팝업 알림 모달 -->
+        <div
+          id="upload-complete-modal"
+          class="fixed inset-0 z-60 flex items-center justify-center bg-black/60 backdrop-blur-sm print-hidden hidden"
+        >
+          <div
+            class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 sm:p-8 transform transition-all relative overflow-hidden border border-slate-100"
+          >
+            <div class="text-center">
+              <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-emerald-100 text-emerald-600 mb-4 ring-8 ring-emerald-50">
+                <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+                </svg>
+              </div>
+              <h3 class="text-xl font-extrabold text-slate-800">
+                데이터 업로드 완료!
+              </h3>
+              <p id="modal-success-subtitle" class="text-sm text-slate-500 mt-1.5 font-medium">
+                시험 데이터가 성공적으로 저장 및 병합되었습니다.
+              </p>
+
+              <!-- 요약 정보 카드 -->
+              <div class="mt-5 bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-left space-y-2.5">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-200 text-xs">
+                  <span class="text-slate-500 font-semibold">대상 시험</span>
+                  <span id="modal-success-exam-title" class="font-bold text-slate-800">2026학년도 1학기 중간고사</span>
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-slate-500 font-semibold">업로드 학년</span>
+                  <span id="modal-success-grade" class="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">2학년</span>
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-slate-500 font-semibold">이번 등록/갱신 인원</span>
+                  <span id="modal-success-current-count" class="font-extrabold text-emerald-600 text-sm">0명</span>
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-slate-500 font-semibold">안전 보존된 타 학년</span>
+                  <span id="modal-success-retained-count" class="font-bold text-slate-600">0명</span>
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t border-slate-200 text-xs">
+                  <span class="text-slate-700 font-bold">총 누적 응시 학생 수</span>
+                  <span id="modal-success-total-count" class="font-extrabold text-blue-600 text-base">0명</span>
+                </div>
+              </div>
+
+              <div class="mt-6 flex gap-3">
+                <button
+                  id="close-upload-complete-modal-btn"
+                  type="button"
+                  class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-5 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer text-sm"
+                >
+                  확인
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="app-content">
+          <!-- 컨트롤 섹션 (설정 영역) -->
+          <div
+            id="controls-section"
+            class="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] p-6 sm:p-8 mb-8 print-hidden border border-slate-100 relative overflow-hidden"
+          >
+            <!-- 상단 파란색 바 (이미지 기준) -->
+            <div
+              class="absolute top-0 left-0 w-full h-1.5 bg-[#2563eb]"
+            ></div>
+
+            <!-- 카드 헤더 (📖 기본 학사 정보와 SCOPE SETTING 버튼) -->
+            <div class="mb-6 flex items-center justify-between pb-4 border-b border-slate-100 flex-nowrap whitespace-nowrap">
+              <div class="flex items-center gap-1.5 flex-nowrap whitespace-nowrap">
+                <svg
+                  class="h-5 w-5 text-[#2563eb] flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                  />
+                </svg>
+                <h2 class="text-base sm:text-lg font-bold text-slate-800 tracking-tight dark:text-slate-100 whitespace-nowrap">
+                  기본 학사 정보
+                </h2>
+              </div>
+              <span
+                class="bg-[#EFF6FF] text-[#2563eb] px-3.5 py-1.5 rounded-lg text-xs font-bold tracking-wider select-none"
+              >
+                SCOPE SETTING
+              </span>
+            </div>
+
+            <!-- 4단 메인 설정 필드 영역 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
+              
+              <!-- 학년도 -->
+              <div class="bg-[#F8FAFC] dark:bg-slate-800/40 rounded-2xl p-4 sm:p-5 flex flex-col justify-center min-h-[90px] border border-slate-50 dark:border-slate-700/30">
+                <div>
+                  <label for="school-year" class="custom-pastel-label bg-pastel-blue">학년도</label>
+                </div>
+                <div class="relative w-full">
+                  <input
+                    type="number"
+                    id="school-year"
+                    min="2020"
+                    max="2035"
+                    step="1"
+                    class="w-full bg-transparent text-slate-800 dark:text-slate-100 text-sm sm:text-base font-bold focus:outline-none cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <!-- 학기 -->
+              <div class="bg-[#F8FAFC] dark:bg-slate-800/40 rounded-2xl p-4 sm:p-5 flex flex-col justify-center min-h-[90px] border border-slate-50 dark:border-slate-700/30">
+                <div>
+                  <label for="semester" class="custom-pastel-label bg-pastel-blue">학기</label>
+                </div>
+                <div class="relative w-full">
+                  <select
+                    id="semester"
+                    class="w-full bg-transparent text-slate-800 dark:text-slate-100 text-sm sm:text-base font-bold focus:outline-none appearance-none cursor-pointer pr-6"
+                  >
+                    <option value="1">1학기</option>
+                    <option value="2">2학기</option>
+                  </select>
+                  <span class="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </span>
+                </div>
+              </div>
+
+              <!-- 고사 구분 -->
+              <div class="bg-[#F8FAFC] dark:bg-slate-800/40 rounded-2xl p-4 sm:p-5 flex flex-col justify-center min-h-[90px] border border-slate-50 dark:border-slate-700/30">
+                <div>
+                  <label for="exam-type" class="custom-pastel-label bg-pastel-blue">고사 구분</label>
+                </div>
+                <div class="relative w-full">
+                  <select
+                    id="exam-type"
+                    class="w-full bg-transparent text-slate-800 dark:text-slate-100 text-sm sm:text-base font-bold focus:outline-none appearance-none cursor-pointer pr-6"
+                  >
+                    <option value="중간고사">중간고사</option>
+                    <option value="기말고사" selected>기말고사</option>
+                  </select>
+                  <span class="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </span>
+                </div>
+              </div>
+
+              <!-- 학년 -->
+              <div class="bg-[#F8FAFC] dark:bg-slate-800/40 rounded-2xl p-4 sm:p-5 flex flex-col justify-center min-h-[90px] border border-slate-50 dark:border-slate-700/30">
+                <div>
+                  <label for="target-grade" class="custom-pastel-label bg-pastel-blue">학년</label>
+                </div>
+                <div class="relative w-full">
+                  <select
+                    id="target-grade"
+                    class="w-full bg-transparent text-slate-800 dark:text-slate-100 text-sm sm:text-base font-bold focus:outline-none appearance-none cursor-pointer pr-6"
+                  >
+                    <option value="1">1학년</option>
+                    <option value="2" selected>2학년</option>
+                    <option value="3">3학년</option>
+                  </select>
+                  <span class="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </span>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- 중앙 응시현황표/자리배치표 생성하기 버튼 영역 -->
+            <div class="flex justify-center mt-6 mb-4 print-hidden pb-4 border-b border-slate-100">
+              <button
+                id="fetch-data-btn"
+                class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-full shadow hover:shadow-lg hover:shadow-emerald-600/20 transition-all flex items-center text-sm sm:text-base border-none outline-none focus:outline-none cursor-pointer"
+              >
+                <svg
+                  class="w-5 h-5 mr-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  stroke-width="2.5"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  ></path>
+                </svg>
+                응시현황표/자리배치표 생성하기
+              </button>
+            </div>
+
+            <div id="generation-options" class="hidden">
+              <div
+                class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 items-start"
+              >
+                <div
+                  class="flex flex-col border-b border-transparent focus-within:border-slate-300 pb-1"
+                >
+                  <div>
+                    <label for="exam-date" class="custom-pastel-label bg-pastel-purple">고사일</label>
+                  </div>
+                  <div class="relative w-full">
+                    <select
+                      id="exam-date"
+                      class="w-full bg-transparent text-slate-800 dark:text-slate-100 text-sm sm:text-base font-bold focus:outline-none appearance-none cursor-pointer pr-6"
+                    ></select>
+                    <span
+                      class="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"
+                    >
+                      <svg
+                        class="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2.5"
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </span>
+                  </div>
+                </div>
+                <div
+                  class="flex flex-col border-b border-transparent focus-within:border-slate-300 pb-1"
+                >
+                  <div>
+                    <label for="exam-period" class="custom-pastel-label bg-pastel-purple">교시</label>
+                  </div>
+                  <div class="relative w-full">
+                    <select
+                      id="exam-period"
+                      class="w-full bg-transparent text-slate-800 dark:text-slate-100 text-sm sm:text-base font-bold focus:outline-none appearance-none cursor-pointer pr-6 disabled:opacity-50"
+                      disabled
+                    >
+                      <option value="">날짜를 선택하세요</option>
+                    </select>
+                    <span
+                      class="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"
+                    >
+                      <svg
+                        class="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2.5"
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </span>
+                  </div>
+                </div>
+                <div
+                  class="flex flex-col border-b border-transparent focus-within:border-slate-300 pb-1 relative"
+                >
+                  <div>
+                    <label
+                      for="exam-subject"
+                      class="custom-pastel-label bg-pastel-purple flex items-center"
+                      >과목명
+                      <span class="text-[11px] font-normal ml-1.5 opacity-90"
+                        >(다중: Ctrl/Shift)</span
+                      ></label
+                    >
+                  </div>
+                  <select
+                    id="exam-subject"
+                    multiple
+                    size="5"
+                    class="w-full text-slate-800 dark:text-slate-100 text-sm sm:text-base font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 border border-slate-300 dark:border-slate-700/50 rounded-xl min-h-[140px] px-3 py-2 mt-1 disabled:opacity-50 bg-transparent dark:bg-slate-900/40"
+                    disabled
+                  >
+                    <option>교시를 선택하세요</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- 하단 액션 버튼 영역 -->
+              <div
+                class="mt-10 bg-slate-50 p-6 rounded-2xl border border-slate-100 flex flex-col lg:flex-row justify-between items-center gap-6"
+              >
+                <div
+                  class="flex flex-wrap items-center justify-center gap-4 w-full lg:w-auto"
+                >
+                  <button
+                    id="generate-btn"
+                    disabled
+                    class="bg-gradient-to-r from-blue-600 to-blue-500 text-white font-bold py-3.5 px-8 rounded-full hover:shadow-lg hover:shadow-blue-600/30 hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-4 focus:ring-blue-500/30 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none flex items-center justify-center min-w-[160px]"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-5 w-5 mr-2"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                      />
+                    </svg>
+                    문서 생성하기
+                  </button>
+                </div>
+              </div>
+
+              <div
+                id="print-controls"
+                class="hidden flex flex-wrap items-center justify-center gap-3 w-full lg:w-auto"
+              >
+                <div class="h-8 w-px bg-slate-300 hidden lg:block mx-2"></div>
+                <button
+                  id="print-attendance-btn"
+                  class="bg-gradient-to-r from-orange-500 to-[#f97316] text-white font-bold py-3.5 px-6 rounded-full hover:shadow-lg hover:shadow-orange-500/30 hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-4 focus:ring-orange-500/30 flex items-center"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5 mr-2"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                    <path
+                      fill-rule="evenodd"
+                      d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h.01a1 1 0 100-2H10zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h.01a1 1 0 100-2H10z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                  응시현황표 인쇄
+                </button>
+                <button
+                  id="print-seating-chart-btn"
+                  class="bg-gradient-to-r from-sky-500 to-[#0ea5e9] text-white font-bold py-3.5 px-6 rounded-full hover:shadow-lg hover:shadow-sky-500/30 hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-4 focus:ring-sky-500/30 flex items-center"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5 mr-2"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      d="M10 9a3 3 0 100-6 3 3 0 000 6zM6 8a2 2 0 11-4 0 2 2 0 014 0zM1.49 15.326a.78.78 0 01-.358-.442 3 3 0 014.308-3.516 6.484 6.484 0 00-1.905 3.959c-.023.222-.014.442.028.658a.78.78 0 01-.357.502A2.74 2.74 0 011.49 15.326zM16 8a2 2 0 11-4 0 2 2 0 014 0zM10 14a6.5 6.5 0 00-6.225 4.43a.78.78 0 01-.357.502A2.74 2.74 0 011.49 19c2.023 0 3.83-.934 5.034-2.435A6.5 6.5 0 0010 14zm9.51 1.326a.78.78 0 01-.358-.442 3 3 0 014.308-3.516 6.484 6.484 0 00-1.905 3.959c-.023.222-.014.442.028.658a.78.78 0 01-.357.502A2.74 2.74 0 0119.51 15.326z"
+                    />
+                  </svg>
+                  자리배치표 인쇄
+                </button>
+                <button
+                  id="print-b4-btn"
+                  class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold py-3.5 px-6 rounded-full hover:shadow-lg hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-4 focus:ring-emerald-500/30 flex items-center"
+                  title="B4 용지 가로 방향으로 좌측에 응시현황표, 우측에 자리배치표를 1장에 인쇄합니다."
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5 mr-2"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm0 2h5v10H4V5zm7 10V5h5v10h-5z" />
+                  </svg>
+                  B4 가로 인쇄 (응시현황+자리배치)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 결과물이 출력되는 영역 (print:pb-0 및 print:mb-0 추가) -->
+          <div id="printable-area" class="pb-10 print:pb-0 print:mb-0"></div>
+        </div>
+      </main>
+    </div>
+
+    <script type="module" src="/src/docs/entry.js"></script>
+
+    <!-- 포털 상단 헤더: 다크모드 전환 / 글꼴 크기 조절 -->
+    <script>
+      (function () {
+        const root = document.documentElement;
+
+        // ── 다크모드 전환 ──
+        const darkToggle = document.getElementById("dark-toggle");
+        const darkIcon = document.getElementById("dark-icon");
+        const darkLabel = document.getElementById("dark-label");
+        const moonSvg =
+          '<svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" /></svg>';
+        const sunSvg =
+          '<svg class="w-3.5 h-3.5 text-amber-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 7a5 5 0 100 10 5 5 0 000-10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+        let dark = false;
+        darkToggle.addEventListener("click", () => {
+          dark = !dark;
+          root.classList.toggle("dark", dark);
+          darkIcon.innerHTML = dark ? sunSvg : moonSvg;
+          darkLabel.textContent = dark ? "라이트모드" : "다크모드";
+        });
+
+        // ── 글꼴 크기 조절 ──
+        const setFont = (dir) => {
+          if (dir === 0) {
+            root.style.fontSize = "";
+            return;
+          }
+          const cur = parseFloat(getComputedStyle(root).fontSize) || 16;
+          const next = Math.min(20, Math.max(13, cur + dir));
+          root.style.fontSize = next + "px";
+        };
+        document
+          .getElementById("font-larger")
+          .addEventListener("click", () => setFont(1));
+        document
+          .getElementById("font-default")
+          .addEventListener("click", () => setFont(0));
+        document
+          .getElementById("font-smaller")
+          .addEventListener("click", () => setFont(-1));
+      })();
+    </script>
+  </body>
+</html>

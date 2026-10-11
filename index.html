@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>원묵고 정기고사 관리 시스템</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background: linear-gradient(180deg, #cfe5fa 0%, #e3f0fc 22%, #eef6fd 55%, #f4f9fe 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+
+        /* ── 경상북도교육청 포털 테마 ── */
+        .gbe-header { background: #ffffff; border-bottom: 1px solid #e2eaf2; box-shadow: 0 1px 0 rgba(15,40,80,0.03); }
+        .gbe-nav a { position: relative; }
+        .gbe-nav a.active { color: #0b3d7a; }
+        .gbe-nav a.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: -14px; height: 3px; border-radius: 3px; background: linear-gradient(90deg,#2f80d6,#34b3a0); }
+        .gbe-util-btn { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid #dbe5f0; color: #5b7799; background: #f6f9fd; transition: all .15s; }
+        .gbe-util-btn:hover { background: #eaf2fc; color: #2f80d6; border-color: #c2d6ee; }
+
+        /* GBE 로고 스워시 */
+        .gbe-logo-swoosh .b1 { fill: #2f80d6; }
+        .gbe-logo-swoosh .b2 { fill: #6fc3e8; }
+        .gbe-logo-swoosh .g1 { fill: #46b98a; }
+
+        /* 다크모드 (포털 야간 테마) */
+        .dark body { background: linear-gradient(180deg, #0a1730 0%, #0c2247 45%, #0d2b58 100%); }
+        .dark .gbe-header { background: #0c1c3a; border-bottom-color: #1d3563; box-shadow: none; }
+        .dark .gbe-header .gbe-brand-text { color: #e8f1ff !important; }
+        .dark .gbe-header .gbe-brand-sub { color: #8fb4e6 !important; }
+        .dark .gbe-nav a { color: #b9cdec !important; }
+        .dark .gbe-nav a.active { color: #ffffff !important; }
+        .dark .gbe-util-btn { background: #122a52; border-color: #244a86; color: #9fc0ec; }
+        .dark .gbe-util-btn:hover { background: #1a3a6e; color: #fff; }
+        .dark .gbe-footer { background: #0a1730 !important; border-top-color: #1d3563 !important; color: #7f9ec9 !important; }
+        .dark .seoul-logo { background: #fff; border-radius: 10px; padding: 5px 10px; }
+
+        /* ── 학급별 시험 시간표 인쇄 ── */
+        @media print {
+            @page { size: A4 landscape; margin: 0; }
+            html, body { 
+                background: white !important; 
+                -webkit-print-color-adjust: exact !important; 
+                print-color-adjust: exact !important; 
+                margin: 0 !important; 
+                padding: 0 !important; 
+                width: 297mm !important; 
+                height: 210mm !important; 
+                display: flex !important; 
+                align-items: center !important; 
+                justify-content: center !important; 
+                overflow: hidden !important; 
+            }
+            .print-hidden { display: none !important; }
+            #printable-section { 
+                margin: 0 auto !important; 
+                padding: 0 !important; 
+                box-shadow: none !important; 
+                width: 275mm !important; 
+                max-width: 275mm !important; 
+                transform: scale(0.9); 
+                transform-origin: center center; 
+            }
+            #printable-section .print-card { box-shadow: none !important; border: none !important; background: transparent !important; padding: 0 !important; }
+            .print-header-container { margin-bottom: 4mm !important; padding-bottom: 2mm !important; border-bottom: 1px solid #000 !important; }
+            #printable-section .print-header-container h2 { color: black !important; font-size: 15pt !important; font-weight: bold; text-align: center; margin: 0 !important; }
+            #printable-section .print-header-container img { position: absolute !important; top: 50% !important; transform: translateY(-50%) !important; right: 0 !important; max-height: 25px !important; }
+            #print-area { width: 100% !important; }
+            #timetable-scroll-container { margin: 0 !important; }
+            table { width: 100% !important; max-width: 100% !important; table-layout: fixed !important; border-collapse: collapse !important; }
+            table col { width: auto !important; }
+            table col:nth-child(1) { width: 45px !important; }
+            table col:nth-child(2) { width: 55px !important; }
+            th, td { border: 1px solid #000 !important; padding: 3px 1px !important; text-align: center !important; color: black !important; font-size: 7.5pt !important; line-height: 1.26 !important; vertical-align: middle !important; word-break: keep-all !important; overflow-wrap: break-word !important; white-space: normal !important; }
+            thead th { background-color: #f1f5f9 !important; font-weight: bold !important; height: 1% !important; padding: 4px 1px !important; }
+        }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* ── 개인 카드 화면 미리보기 ── */
+        .individual-card-screen {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
+            border: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+        }
+        .ic-header {
+            background: linear-gradient(135deg, #2b6cb8 0%, #4a9bd9 100%);
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .ic-student-info {
+            background: #eff6ff;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            border-bottom: 1.5px solid #bfdbfe;
+            flex-shrink: 0;
+        }
+        .ic-table-wrap table { width: 100%; border-collapse: collapse; }
+        .ic-table-wrap thead tr { background: #f8fafc; }
+        .ic-table-wrap th { border: 1px solid #e2e8f0; border-bottom: 1.5px solid #b0bec5; padding: 7px 6px; text-align: center; font-size: 11px; font-weight: 700; color: #475569; }
+        .ic-table-wrap td { border: 1px solid #e2e8f0; padding: 7px 6px; text-align: center; vertical-align: middle; font-size: 12px; }
+        .ic-table-wrap tr:nth-child(even) { background: #fafbfc; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+<div id="root" class="flex-grow flex flex-col"></div>
+<div id="error-fallback" style="display:none; padding:24px; margin:24px; background:#fff2f2; border:2px solid #fca5a5; color:#991b1b; font-family:sans-serif; border-radius:16px; max-width:800px; margin-left:auto; margin-right:auto; box-shadow:0 10px 15px -3px rgba(0,0,0,0.05); position:relative;">
+    <button onclick="document.getElementById('error-fallback').style.display='none'" style="position:absolute; top:12px; right:12px; background:none; border:none; color:#991b1b; cursor:pointer; font-size:20px; font-weight:bold;">&times;</button>
+    <h3 style="margin-top:0; font-size:18px; font-weight:800; display:flex; align-items:center; gap:8px;">
+        <svg style="width:24px; height:24px; flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        시스템 로딩 중 예상치 못한 오류가 발견되었습니다.
+    </h3>
+    <p style="font-size:14px; color:#7f1d1d; margin-bottom:12px; font-weight:600;">브라우저 확장 프로그램(Grammarly 등) 혹은 네트워크 보안 설정으로 인한 일시적 오류일 수 있습니다. '새 창으로 열기'를 권장합니다.</p>
+    <pre id="error-message" style="white-space:pre-wrap; background:#fef2f2; padding:16px; border-radius:8px; font-family:monospace; font-size:13px; border:1px solid #fee2e2; overflow-x:auto; margin:0;"></pre>
+    <button onclick="location.reload()" style="margin-top:16px; background:#991b1b; color:white; border:none; padding:8px 16px; border-radius:8px; cursor:pointer; font-weight:bold; font-size:13px;">페이지 새로고침</button>
+</div>
+<script>
+    function handleError(msgText, filename, lineno, colno) {
+        msgText = msgText || '';
+        filename = filename || 'unknown';
+        
+        // 브라우저 확장 프로그램, 외부 트래커, CORS로 세부정보가 가려진 무해한 Script error는 무시합니다.
+        if (msgText === 'Script error.' && filename === 'unknown') return;
+        if (filename.indexOf('chrome-extension') !== -1 || filename.indexOf('moz-extension') !== -1) return;
+        if (msgText.indexOf('Converting circular structure to JSON') !== -1 && filename.indexOf('webchannel_connection') !== -1) return;
+        if (msgText.indexOf('Grammarly') !== -1 || msgText.indexOf('grammarly') !== -1) return;
+        if (msgText.indexOf('Extension') !== -1 || msgText.indexOf('extension') !== -1) return;
+        if (filename.indexOf('doubleclick.net') !== -1 || filename.indexOf('google-analytics') !== -1) return;
+
+        var fallback = document.getElementById('error-fallback');
+        var msg = document.getElementById('error-message');
+        if (fallback && msg) {
+            fallback.style.display = 'block';
+            msg.textContent += '\n[' + new Date().toLocaleTimeString() + '] ' + msgText + '\n  위치: ' + filename + (lineno ? ':' + lineno : '') + (colno ? ':' + colno : '');
+        }
+    }
+
+    window.addEventListener('error', function(e) {
+        handleError(e.message, e.filename, e.lineno, e.colno);
+    });
+
+    window.addEventListener('unhandledrejection', function(e) {
+        var reason = e.reason;
+        var msg = (reason && reason.message) || String(reason || 'Promise Rejection');
+        // Firebase 혹은 기타 네트워크 지연으로 인한 비치명적 거부는 무시하거나 로그만 남깁니다.
+        if (msg.indexOf('Firestore') !== -1 || msg.indexOf('quota') !== -1 || msg.indexOf('Firebase') !== -1) {
+            console.warn('Network/Firebase Promise Rejection:', msg);
+            return;
+        }
+        handleError('Unhandled Promise: ' + msg, 'Promise');
+    });
+</script>
+
+<script type="module" src="/src/timetable/main.jsx"></script>
+</body>
+</html>
